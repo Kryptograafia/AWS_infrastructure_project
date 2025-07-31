@@ -1,0 +1,1 @@
+// variables for hr_search Lambda 
