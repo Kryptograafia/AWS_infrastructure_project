@@ -33,4 +33,22 @@ module "cognito" {
   }
 }
 
+module "dynamodb" {
+  source = "./modules/dynamodb"
+  table_name = "candidates"
+  tags = {
+    Environment = "development"
+    Project     = "hr-system"
+  }
+}
+
+module "api_gateway" {
+  source = "./modules/api_gateway"
+  api_name = "hr-system-api"
+  tags = {
+    Environment = "development"
+    Project     = "hr-system"
+  }
+}
+
 

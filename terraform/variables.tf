@@ -26,3 +26,4 @@ variable "website_bucket_name" {
   #default     = "website-bucket-6728b"
 }
 
+

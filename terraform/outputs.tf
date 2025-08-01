@@ -40,7 +40,11 @@ output "cognito_user_pool_endpoint" {
   value       = module.cognito.user_pool_endpoint
 }
 
-
+# API Gateway Outputs
+output "api_gateway_url" {
+  description = "URL of the API Gateway"
+  value       = module.api_gateway.api_gateway_url
+}
 
 # Cognito Authentication URLs
 output "cognito_signup_url" {
