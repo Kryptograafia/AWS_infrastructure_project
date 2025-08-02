@@ -55,6 +55,36 @@ resource "aws_api_gateway_integration_response" "root_get_integration_response" 
 }
 
 # ========================================
+# GENERATE UPLOAD URL ENDPOINT (/generate-upload-url)
+# ========================================
+
+# Generate upload URL resource
+resource "aws_api_gateway_resource" "generate_upload_url" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = data.aws_api_gateway_resource.root.id
+  path_part   = "generate-upload-url"
+}
+
+# POST method for generate-upload-url resource
+resource "aws_api_gateway_method" "generate_upload_url_post" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.generate_upload_url.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+# Lambda integration for generate-upload-url POST method
+resource "aws_api_gateway_integration" "generate_upload_url_post_integration" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.generate_upload_url.id
+  http_method = aws_api_gateway_method.generate_upload_url_post.http_method
+
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = var.lambda_generate_url_invoke_arn
+}
+
+# ========================================
 # UPLOAD CV ENDPOINT (/upload-cv)
 # ========================================
 
@@ -132,7 +162,7 @@ resource "aws_api_gateway_integration" "search_candidates_get_integration" {
 
   type                    = "AWS_PROXY"
   integration_http_method = "POST"
-  uri                     = var.lambda_search_function_arn
+  uri                     = var.lambda_search_invoke_arn
 }
 
 # Method response for search-candidates GET
@@ -144,16 +174,25 @@ resource "aws_api_gateway_method_response" "search_candidates_get_response" {
 }
 
 # ========================================
-# LAMBDA PERMISSION
+# LAMBDA PERMISSIONS
 # ========================================
 
-# Allow API Gateway to invoke Lambda function
+# Allow API Gateway to invoke search Lambda function
 resource "aws_lambda_permission" "search_candidates_api_gateway_invoke" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_search_function_arn
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/search-candidates"
+}
+
+# Allow API Gateway to invoke generate URL Lambda function
+resource "aws_lambda_permission" "generate_url_api_gateway_invoke" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_generate_url_function_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/generate-upload-url"
 }
 
 # ========================================
@@ -165,6 +204,7 @@ resource "aws_api_gateway_deployment" "main" {
   depends_on = [
     aws_api_gateway_integration.root_get_integration,
     aws_api_gateway_integration_response.root_get_integration_response,
+    aws_api_gateway_integration.generate_upload_url_post_integration,
     aws_api_gateway_integration.upload_cv_post_integration,
     aws_api_gateway_integration_response.upload_cv_post_integration_response,
     aws_api_gateway_integration.search_candidates_get_integration
@@ -176,6 +216,7 @@ resource "aws_api_gateway_deployment" "main" {
   triggers = {
     redeployment = sha1(jsonencode([
       aws_api_gateway_integration.root_get_integration,
+      aws_api_gateway_integration.generate_upload_url_post_integration,
       aws_api_gateway_integration.upload_cv_post_integration,
       aws_api_gateway_integration.search_candidates_get_integration
     ]))
