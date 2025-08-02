@@ -124,16 +124,15 @@ resource "aws_api_gateway_method" "search_candidates_get" {
   authorization = "NONE"
 }
 
-# Mock integration for search-candidates GET method
+# Lambda integration for search-candidates GET method
 resource "aws_api_gateway_integration" "search_candidates_get_integration" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   resource_id = aws_api_gateway_resource.search_candidates.id
   http_method = aws_api_gateway_method.search_candidates_get.http_method
 
-  type = "MOCK"
-  request_templates = {
-    "application/json" = "{\"statusCode\": 200}"
-  }
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = var.lambda_search_function_arn
 }
 
 # Method response for search-candidates GET
@@ -144,16 +143,17 @@ resource "aws_api_gateway_method_response" "search_candidates_get_response" {
   status_code = "200"
 }
 
-# Integration response for search-candidates GET
-resource "aws_api_gateway_integration_response" "search_candidates_get_integration_response" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.search_candidates.id
-  http_method = aws_api_gateway_method.search_candidates_get.http_method
-  status_code = aws_api_gateway_method_response.search_candidates_get_response.status_code
+# ========================================
+# LAMBDA PERMISSION
+# ========================================
 
-  response_templates = {
-    "application/json" = "{\"message\": \"Search candidates endpoint ready!\", \"candidates\": []}"
-  }
+# Allow API Gateway to invoke Lambda function
+resource "aws_lambda_permission" "search_candidates_api_gateway_invoke" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_search_function_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/search-candidates"
 }
 
 # ========================================
@@ -167,8 +167,7 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_integration_response.root_get_integration_response,
     aws_api_gateway_integration.upload_cv_post_integration,
     aws_api_gateway_integration_response.upload_cv_post_integration_response,
-    aws_api_gateway_integration.search_candidates_get_integration,
-    aws_api_gateway_integration_response.search_candidates_get_integration_response
+    aws_api_gateway_integration.search_candidates_get_integration
   ]
 
   rest_api_id = aws_api_gateway_rest_api.main.id

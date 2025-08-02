@@ -42,9 +42,33 @@ module "dynamodb" {
   }
 }
 
+# IAM module for Lambda roles and policies
+module "iam" {
+  source = "./modules/iam"
+  lambda_function_name = "hr-search-candidates"
+  dynamodb_table_name = module.dynamodb.table_name
+  tags = {
+    Environment = "development"
+    Project     = "hr-system"
+  }
+}
+
+# Lambda function for searching candidates
+module "lambda_hr_search" {
+  source = "./modules/lambda/hr_search"
+  function_name = "hr-search-candidates"
+  dynamodb_table_name = module.dynamodb.table_name
+  lambda_role_arn = module.iam.lambda_candidate_search_role_arn
+  tags = {
+    Environment = "development"
+    Project     = "hr-system"
+  }
+}
+
 module "api_gateway" {
   source = "./modules/api_gateway"
   api_name = "hr-system-api"
+  lambda_search_function_arn = module.lambda_hr_search.function_arn
   tags = {
     Environment = "development"
     Project     = "hr-system"
