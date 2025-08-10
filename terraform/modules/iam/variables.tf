@@ -18,6 +18,11 @@ variable "cv_bucket_name" {
   type        = string
 }
 
+variable "textract_function_name" {
+  description = "Name of the Textract Lambda function"
+  type        = string
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

@@ -1,6 +1,11 @@
-module "cv_bucket" {
-  source = "./modules/s3/cv_bucket"
-  cv_upload_bucket_name = var.cv_upload_bucket_name
+# SNS module for Textract completion notifications
+module "sns" {
+  source = "./modules/sns"
+  topic_name = "textract-completion-notifications"
+  tags = {
+    Environment = "development"
+    Project     = "hr-system"
+  }
 }
 
 module "website_bucket" {
@@ -48,11 +53,36 @@ module "iam" {
   lambda_function_name = "hr-search-candidates"
   dynamodb_table_name = module.dynamodb.table_name
   generate_url_function_name = "hr-generate-upload-url"
-  cv_bucket_name = module.cv_bucket.bucket_name
+  textract_function_name = "hr-textract-processor"
+  cv_bucket_name = var.cv_upload_bucket_name  # Use variable instead of module reference
   tags = {
     Environment = "development"
     Project     = "hr-system"
   }
+}
+
+# Lambda function for CV text extraction using Textract (MOVE THIS BEFORE cv_bucket)
+module "lambda_textract" {
+  source = "./modules/lambda/textract"
+  textract_processor_function_name = "hr-textract-processor"
+  cv_parser_function_name = "hr-cv-parser"
+  dynamodb_table_name = module.dynamodb.table_name
+  lambda_role_arn = module.iam.lambda_textract_role_arn
+  cv_bucket_name = var.cv_upload_bucket_name  # Use variable instead of module reference
+  sns_topic_arn = module.sns.topic_arn
+  textract_sns_role_arn = module.iam.textract_sns_role_arn
+  tags = {
+    Environment = "development"
+    Project     = "hr-system"
+  }
+}
+
+# NOW define cv_bucket after lambda_textract is defined
+module "cv_bucket" {
+  source = "./modules/s3/cv_bucket"
+  cv_upload_bucket_name = var.cv_upload_bucket_name
+  textract_lambda_arn = module.lambda_textract.textract_processor_function_arn
+  textract_lambda_function_name = module.lambda_textract.textract_processor_function_name
 }
 
 # Lambda function for generating presigned URLs
